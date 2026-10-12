@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.34.513] - 2026-10-12
+
 ### Fixed
 - **About links**: Point the fork repository link to `xluffy/flux-markdown`, the canonical repository name (by [@xluffy](https://github.com/xluffy)).
 
