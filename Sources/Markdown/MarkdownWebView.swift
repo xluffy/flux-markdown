@@ -40,6 +40,7 @@ struct MarkdownWebView: NSViewRepresentable {
         let userContentController = WKUserContentController()
         userContentController.add(coordinator, name: "logger")
         userContentController.add(coordinator, name: "linkClicked")
+        userContentController.add(coordinator, name: "gitHistory")
         
         let debugSource = """
         window.onerror = function(msg, url, line, col, error) {
@@ -134,6 +135,10 @@ struct MarkdownWebView: NSViewRepresentable {
         private let pollingInterval: TimeInterval = 2.0
         private var hasAppliedInitialZoomReset: Bool = false
         private let renderVersion = RenderVersionCounter()
+
+        // Git history
+        private var gitHistoryEntriesByID: [String: [String: Any]] = [:]
+        private var gitHistoryGeneration = 0
 
         override init() {
             super.init()
@@ -369,9 +374,9 @@ struct MarkdownWebView: NSViewRepresentable {
             }
         }
 
-        private func executeRender(webView: WKWebView, content: String, fileURL: URL?, viewMode: ViewMode, appearanceMode: AppearanceMode, baseFontSize: Double, enableMermaid: Bool, enableKatex: Bool, enableEmoji: Bool, enableTypst: Bool, codeHighlightTheme: String, collapseBlockquotesByDefault: Bool, showLineNumbers: Bool = false) {
+        private func executeRender(webView: WKWebView, content: String, fileURL: URL?, viewMode: ViewMode, appearanceMode: AppearanceMode, baseFontSize: Double, enableMermaid: Bool, enableKatex: Bool, enableEmoji: Bool, enableTypst: Bool, codeHighlightTheme: String, collapseBlockquotesByDefault: Bool, showLineNumbers: Bool = false, forceFullRender: Bool = false) {
             let onlyThemeChanged = (content == lastRenderedContent) && (viewMode == .preview) && (viewMode == lastViewMode) && (collapseBlockquotesByDefault == lastCollapseBlockquotesByDefault) && (showLineNumbers == lastShowLineNumbers)
-            if onlyThemeChanged {
+            if !forceFullRender && onlyThemeChanged {
                 os_log("🔵 FAST PATH: only theme changed, viewMode=%{public}@ lastViewMode=%{public}@", log: logger, type: .debug, String(describing: viewMode), String(describing: lastViewMode))
                 let theme: String
                 switch appearanceMode {
@@ -411,14 +416,7 @@ struct MarkdownWebView: NSViewRepresentable {
                 options["baseUrl"] = baseUrlString
             }
 
-            let appearanceName = webView.effectiveAppearance.name
-            var theme = "system"
-            if appearanceName == .darkAqua || appearanceName == .vibrantDark || appearanceName == .accessibilityHighContrastDarkAqua || appearanceName == .accessibilityHighContrastVibrantDark {
-                theme = "dark"
-            } else if appearanceName == .aqua || appearanceName == .vibrantLight || appearanceName == .accessibilityHighContrastAqua || appearanceName == .accessibilityHighContrastVibrantLight {
-                theme = "light"
-            }
-            options["theme"] = theme
+            options["theme"] = themeName(for: webView)
 
             options["fontSize"] = baseFontSize
             options["codeHighlightTheme"] = codeHighlightTheme
@@ -467,6 +465,9 @@ struct MarkdownWebView: NSViewRepresentable {
             webView.evaluateJavaScript(js) { [weak self] _, error in
                 if let error = error {
                     os_log("JS Error: %{public}@", log: self?.logger ?? .default, type: .error, error.localizedDescription)
+                }
+                if viewMode == .preview {
+                    self?.loadGitHistory(webView: webView, fileURL: fileURL)
                 }
                 // After render completes, scroll to any pending anchor for this file
                 if let fileURL = fileURL,
@@ -553,7 +554,153 @@ struct MarkdownWebView: NSViewRepresentable {
             } else if message.name == "linkClicked", let href = message.body as? String {
                 os_log("🔵 Link clicked from JS: %{public}@", log: logger, type: .default, href)
                 handleLinkClick(href: href)
+            } else if message.name == "gitHistory", let body = message.body as? [String: Any], let webView = message.webView {
+                handleGitHistoryMessage(body, webView: webView)
             }
+        }
+
+        // MARK: - Git History
+
+        private func loadGitHistory(webView: WKWebView, fileURL: URL?) {
+            guard let url = fileURL else { return }
+            gitHistoryGeneration += 1
+            let generation = gitHistoryGeneration
+
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                let payload = GitHistoryProvider(fileURL: url).payload()
+                let entries = payload["entries"] as? [[String: Any]] ?? []
+                var byID: [String: [String: Any]] = [:]
+                for entry in entries {
+                    if let id = entry["id"] as? String { byID[id] = entry }
+                }
+                DispatchQueue.main.async {
+                    guard let self = self, self.gitHistoryGeneration == generation else { return }
+                    self.gitHistoryEntriesByID = byID
+                    self.sendGitHistory(payload, to: webView)
+                }
+            }
+        }
+
+        private func sendGitHistory(_ payload: [String: Any], to webView: WKWebView) {
+            guard let data = try? JSONSerialization.data(withJSONObject: payload, options: []),
+                  let json = String(data: data, encoding: .utf8) else { return }
+            webView.evaluateJavaScript("window.setGitHistory && window.setGitHistory(\(json));", completionHandler: nil)
+        }
+
+        private func handleGitHistoryMessage(_ body: [String: Any], webView: WKWebView) {
+            guard let action = body["action"] as? String else { return }
+            if action == "current" {
+                webView.evaluateJavaScript("window.clearDiffMarks && window.clearDiffMarks();", completionHandler: nil)
+                reRenderCurrent(webView: webView)
+                return
+            }
+            guard action == "select", let id = body["id"] as? String else { return }
+
+            if id == "working" {
+                showWorkingTreeDiff(webView: webView)
+                return
+            }
+            guard let entry = gitHistoryEntriesByID[id],
+                  let hash = entry["id"] as? String,
+                  let path = entry["path"] as? String else { return }
+            showCommitDiff(hash: hash, path: path, entryID: id, webView: webView)
+        }
+
+        private func showWorkingTreeDiff(webView: WKWebView) {
+            guard let url = currentFileURL else { return }
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                let provider = GitHistoryProvider(fileURL: url)
+                let current = (try? provider.currentContent()) ?? ""
+                let baseline = (try? provider.headContent()) ?? ""
+                DispatchQueue.main.async {
+                    self?.renderGitDiff(webView: webView, current: current, baseline: baseline, entryID: "working")
+                }
+            }
+        }
+
+        private func showCommitDiff(hash: String, path: String, entryID: String, webView: WKWebView) {
+            guard let url = currentFileURL else { return }
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                let provider = GitHistoryProvider(fileURL: url)
+                let current = (try? provider.content(hash: hash, path: path)) ?? ""
+                let baseline = (try? provider.parentContent(hash: hash, path: path)) ?? ""
+                DispatchQueue.main.async {
+                    self?.renderGitDiff(webView: webView, current: current, baseline: baseline, entryID: entryID)
+                }
+            }
+        }
+
+        /// Render the on-disk document again, without diff marks.
+        private func reRenderCurrent(webView: WKWebView) {
+            executeRender(
+                webView: webView,
+                content: lastRenderedContent,
+                fileURL: currentFileURL,
+                viewMode: lastViewMode,
+                appearanceMode: lastAppearanceMode,
+                baseFontSize: lastBaseFontSize,
+                enableMermaid: lastEnableMermaid,
+                enableKatex: lastEnableKatex,
+                enableEmoji: lastEnableEmoji,
+                enableTypst: lastEnableTypst,
+                codeHighlightTheme: lastCodeHighlightTheme,
+                collapseBlockquotesByDefault: lastCollapseBlockquotesByDefault,
+                showLineNumbers: lastShowLineNumbers,
+                forceFullRender: true
+            )
+        }
+
+        private func renderGitDiff(webView: WKWebView, current: String, baseline: String, entryID: String) {
+            guard let contentData = try? JSONSerialization.data(withJSONObject: [current], options: []),
+                  let contentJsonArray = String(data: contentData, encoding: .utf8) else { return }
+            let safeContentArg = String(contentJsonArray.dropFirst().dropLast())
+
+            var options: [String: Any] = ["context": "app"]
+            if let url = currentFileURL {
+                options["baseUrl"] = url.deletingLastPathComponent().path
+            }
+            options["theme"] = themeName(for: webView)
+            options["fontSize"] = lastBaseFontSize
+            options["codeHighlightTheme"] = lastCodeHighlightTheme
+            options["enableMermaid"] = lastEnableMermaid
+            options["enableKatex"] = lastEnableKatex
+            options["enableEmoji"] = lastEnableEmoji
+            options["enableTypst"] = lastEnableTypst
+            options["collapseBlockquotes"] = lastCollapseBlockquotesByDefault
+            options["showLineNumbers"] = lastShowLineNumbers
+            options["uiLanguage"] = AppearancePreference.shared.uiLanguage
+            options["renderVersion"] = renderVersion.next()
+            options["gitDiffMode"] = true
+            options["baselineContent"] = baseline
+            options["reviewMode"] = false
+
+            guard let optionsData = try? JSONSerialization.data(withJSONObject: options, options: []),
+                  let optionsJson = String(data: optionsData, encoding: .utf8) else { return }
+
+            webView.evaluateJavaScript("window.clearDiffMarks && window.clearDiffMarks();", completionHandler: nil)
+            webView.evaluateJavaScript("window.renderMarkdown(\(safeContentArg), \(optionsJson));") { [weak self] _, error in
+                if let error = error {
+                    os_log("Git diff render error: %{public}@", log: self?.logger ?? .default, type: .error, error.localizedDescription)
+                }
+                self?.selectGitHistoryEntry(entryID, in: webView)
+            }
+        }
+
+        private func selectGitHistoryEntry(_ id: String, in webView: WKWebView) {
+            guard let data = try? JSONSerialization.data(withJSONObject: [id], options: []),
+                  let array = String(data: data, encoding: .utf8) else { return }
+            let safeId = String(array.dropFirst().dropLast())
+            webView.evaluateJavaScript("window.selectGitHistoryEntry && window.selectGitHistoryEntry(\(safeId));", completionHandler: nil)
+        }
+
+        private func themeName(for webView: WKWebView) -> String {
+            let appearanceName = webView.effectiveAppearance.name
+            if appearanceName == .darkAqua || appearanceName == .vibrantDark || appearanceName == .accessibilityHighContrastDarkAqua || appearanceName == .accessibilityHighContrastVibrantDark {
+                return "dark"
+            } else if appearanceName == .aqua || appearanceName == .vibrantLight || appearanceName == .accessibilityHighContrastAqua || appearanceName == .accessibilityHighContrastVibrantLight {
+                return "light"
+            }
+            return "system"
         }
         
         func exportHTML(webView: WKWebView, completion: @escaping (String?) -> Void) {

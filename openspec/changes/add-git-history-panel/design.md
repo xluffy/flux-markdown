@@ -12,21 +12,21 @@ tags:
 
 ## Context
 
-The preview extension runs in the App Sandbox. The extension receives the previewed file URL. The extension reads sibling files today, for example local images. The web renderer exposes `window.renderMarkdown`. The `add-review-mode` change adds a block diff and inline word marks.
+The main app is not sandboxed. The app opens a file from disk and has the file URL. The web renderer exposes `window.renderMarkdown`. The `add-review-mode` change adds a block diff and inline word marks.
 
 ## Decisions
 
 ### Repository detection
 
-The extension asks Git for the repository root of the file folder:
+The app asks Git for the repository root of the file folder:
 `git rev-parse --show-toplevel`.
-Git walks up the folder tree. The extension rejects a `.git` file, because the spec excludes a linked worktree and a submodule.
+Git walks up the folder tree. The app rejects a `.git` file, because the spec excludes a linked worktree and a submodule.
 This call uses the same 3-second timeout as every other Git call.
-The extension does not read the parent folders with Foundation, because that read can block.
+The app does not read the parent folders with Foundation, because that read can block.
 
 ### Git process
 
-The extension runs `/usr/bin/git` with `Process`. The extension sets this environment:
+The app runs `/usr/bin/git` with `Process`. The app sets this environment:
 
 - `GIT_CONFIG_NOSYSTEM=1`
 - `GIT_TERMINAL_PROMPT=0`
@@ -34,11 +34,11 @@ The extension runs `/usr/bin/git` with `Process`. The extension sets this enviro
 - `LC_ALL=C`
 - `HOME` = the temporary directory of the app container
 
-The extension applies a 3-second timeout. The extension kills the process on a timeout. The extension sets the working directory to the repository root.
+The app applies a 3-second timeout. The app kills the process on a timeout. The app sets the working directory to the repository root.
 
 ### Commands
 
-The extension uses these commands:
+The app uses these commands:
 
 - History with renames and paths:
   `git log -n 10 --follow --name-only --format=<fields> -- <relativePath>`
@@ -51,11 +51,11 @@ The extension uses these commands:
   - baseline = `git show HEAD:<relativePath>`
   - test = `git status --porcelain -- <relativePath>`
 
-A root commit has no parent. The parent command fails. The extension uses an empty baseline.
+A root commit has no parent. The parent command fails. The app uses an empty baseline.
 
 ### Data transfer
 
-The extension sends one payload to the web renderer:
+The app sends one payload to the web renderer:
 
 `window.setGitHistory({ available, reason, entries })`
 
@@ -65,7 +65,7 @@ The web renderer sends a selection message to Swift:
 
 `window.webkit.messageHandlers.gitHistory.postMessage({ action: "select", id })`
 
-The extension fetches the two revisions. The extension calls:
+The app fetches the two revisions. The app calls:
 
 `window.showGitDiff({ id, current, baseline, meta })`
 
@@ -81,8 +81,8 @@ The panel reuses `diffBlocks` and the inline word marks from `add-review-mode`. 
 
 ### Sandbox access
 
-The release entitlements add a read-only temporary exception for the home folder. The extension catches a read error. The extension sends `available: false` with a reason. The panel shows the reason.
+The app catches a read error. The app sends `available: false` with a reason. The panel shows the reason.
 
 ### Performance
 
-The extension starts the Git work after the first render. The extension runs the work on a background queue. The panel does not block the first paint.
+The app starts the Git work after the first render. The app runs the work on a background queue. The panel does not block the first paint.

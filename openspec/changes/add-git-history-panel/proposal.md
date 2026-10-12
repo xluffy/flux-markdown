@@ -34,15 +34,14 @@ This change does NOT:
 
 ## Access decision
 
-A QuickLook extension cannot show a folder picker. The extension uses a read-only temporary exception for the home folder in the release entitlements. The panel shows a "no access" message when a read fails. A future change can add a folder picker in the host app with a security-scoped bookmark.
+The main app is not sandboxed. It reads the repository and runs `/usr/bin/git` directly. The QuickLook extension does not load Git history and does not need a home-folder read exception. The panel shows a reason when a read fails.
 
 ## Impact
 
 - Affected specs: `git-history-panel` (new)
 - Affected code:
-  - `Sources/MarkdownPreview/GitHistoryProvider.swift` (new)
-  - `Sources/MarkdownPreview/PreviewViewController.swift` (detect, fetch, bridge)
-  - `Sources/MarkdownPreview/MarkdownPreviewRelease.entitlements` (read-only exception for the home folder)
+  - `Sources/Shared/GitHistoryProvider.swift` (new)
+  - `Sources/Markdown/MarkdownWebView.swift` (main app: detect, fetch, bridge)
   - `web-renderer/src/git-history-panel.ts` (new)
   - `web-renderer/src/styles/git-history-panel.css` (new)
   - `web-renderer/src/index.ts` (render hook and JS API)

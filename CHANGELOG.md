@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- **Git history panel location**: Show the Git history panel in the main app window. The QuickLook preview no longer loads Git. This also removes the home-folder read exception from the QuickLook extension.
+
 ## [1.34.524] - 2026-10-12
 
 ### Fixed

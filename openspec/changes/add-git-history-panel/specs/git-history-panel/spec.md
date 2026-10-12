@@ -11,7 +11,7 @@ tags:
 
 ### Requirement: Repository detection
 
-The extension SHALL detect the Git repository root of the previewed file. The extension SHALL ask Git for the root with one bounded call. The extension SHALL NOT detect a `.git` file.
+The main app SHALL detect the Git repository root of the previewed file. The main app SHALL ask Git for the root with one bounded call. The main app SHALL NOT detect a `.git` file.
 
 #### Scenario: File in a repository
 
@@ -30,7 +30,7 @@ The extension SHALL detect the Git repository root of the previewed file. The ex
 
 ### Requirement: History list
 
-The extension SHALL show the history of the open file in a right-side panel. The panel SHALL be hidden by default. The extension SHALL limit the list to 10 commits. Each entry SHALL show the short hash, the author, the relative date, and the subject. The extension SHALL follow file renames.
+The main app SHALL show the history of the open file in a right-side panel. The panel SHALL be hidden by default. The main app SHALL limit the list to 10 commits. Each entry SHALL show the short hash, the author, the relative date, and the subject. The main app SHALL follow file renames.
 
 #### Scenario: Show the panel
 
@@ -54,7 +54,7 @@ The extension SHALL show the history of the open file in a right-side panel. The
 
 ### Requirement: Uncommitted change entry
 
-The extension SHALL add one entry for uncommitted changes. The entry SHALL compare the working tree file to `HEAD`. The extension SHALL show the entry only when `git status --porcelain` reports a change for the file.
+The main app SHALL add one entry for uncommitted changes. The entry SHALL compare the working tree file to `HEAD`. The main app SHALL show the entry only when `git status --porcelain` reports a change for the file.
 
 #### Scenario: Uncommitted change exists
 
@@ -73,7 +73,7 @@ The extension SHALL add one entry for uncommitted changes. The entry SHALL compa
 
 ### Requirement: Inline diff of a selected revision
 
-The extension SHALL show the content of the selected revision. The extension SHALL show an inline diff against the parent revision. The extension SHALL reuse the inline word marks of `add-review-mode`. The extension SHALL NOT show the review controls and the reviewed store. The extension SHALL use an empty baseline for the root commit.
+The main app SHALL show the content of the selected revision. The main app SHALL show an inline diff against the parent revision. The main app SHALL reuse the inline word marks of `add-review-mode`. The main app SHALL NOT show the review controls and the reviewed store. The main app SHALL use an empty baseline for the root commit.
 
 #### Scenario: Select a commit
 
@@ -102,7 +102,7 @@ The extension SHALL show the content of the selected revision. The extension SHA
 
 ### Requirement: Access failure message
 
-The extension SHALL catch a repository read error. The extension SHALL send `available: false` with a reason. The panel SHALL show the reason.
+The main app SHALL catch a repository read error. The main app SHALL send `available: false` with a reason. The panel SHALL show the reason.
 
 #### Scenario: Sandbox denies access
 
@@ -111,7 +111,7 @@ The extension SHALL catch a repository read error. The extension SHALL send `ava
 
 ### Requirement: Background load
 
-The extension SHALL start the Git work after the first render. The extension SHALL run the Git work on a background queue. The panel SHALL NOT delay the first render.
+The main app SHALL start the Git work after the first render. The main app SHALL run the Git work on a background queue. The panel SHALL NOT delay the first render.
 
 #### Scenario: Slow Git work
 

@@ -210,18 +210,12 @@
   }
 }
 
-/* ─── Compact Finder pane: keep the toggle and overlay the panel ─── */
+/* ─── The panel is for the main app window only ─── */
+[data-context='quicklook'] #git-history-panel,
+[data-context='quicklook'] #git-history-toggle,
+[data-context='finder'] #git-history-panel,
 [data-context='finder'] #git-history-toggle {
-  top: 8px;
-  right: 8px;
-}
-
-[data-context='finder'] #git-history-panel {
-  width: min(300px, 90vw);
-}
-
-[data-context='finder'] body.git-history-open #markdown-preview {
-  padding-right: 0;
+  display: none !important;
 }
 
 /* ─── Shift the document when the panel is open ─── */
