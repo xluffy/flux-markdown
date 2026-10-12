@@ -125,11 +125,15 @@
   margin: 0 0 6px 0;
   padding: 6px 8px;
   border-radius: 4px;
-  background: var(--review-before-body-bg, rgba(128, 128, 128, 0.10));
+  background: var(--review-before-body-bg, rgba(248, 81, 73, 0.12));
   color: var(--review-before-body-fg, inherit);
   text-decoration: line-through;
   text-decoration-color: rgba(248, 81, 73, 0.5);
   opacity: 0.9;
+}
+
+[data-theme='dark'] .review-inline-before {
+  background: var(--review-before-body-bg, rgba(248, 81, 73, 0.18));
 }
 
 .review-item.review-modified .review-inline-before {
