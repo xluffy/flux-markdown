@@ -8,7 +8,7 @@ import Foundation
 enum AppIdentity {
     static let appName = "FluxMarkdown"
     static let forkOwner = "xluffy"
-    static let forkRepositoryURL = URL(string: "https://github.com/xluffy-fork/flux-markdown")!
+    static let forkRepositoryURL = URL(string: "https://github.com/xluffy/flux-markdown")!
     static let upstreamRepositoryURL = URL(string: "https://github.com/xykong/flux-markdown")!
 
     /// Returns `true` when the display version carries the fork suffix.
