@@ -11,16 +11,16 @@ tags:
 
 ### Requirement: Repository detection
 
-The extension SHALL detect a Git repository for the previewed file. The extension SHALL walk up from the file folder. The extension SHALL stop at the first folder that contains a `.git` directory. The extension SHALL NOT detect a `.git` file.
+The extension SHALL detect the Git repository root of the previewed file. The extension SHALL ask Git for the root with one bounded call. The extension SHALL NOT detect a `.git` file.
 
 #### Scenario: File in a repository
 
-- **WHEN** the file folder or a parent folder contains a `.git` directory
+- **WHEN** the file is inside a Git work tree
 - **THEN** the extension sets the repository root to the path that the Git command reports
 
 #### Scenario: File not in a repository
 
-- **WHEN** no parent folder contains a `.git` directory
+- **WHEN** no parent folder of the file is a Git work tree
 - **THEN** the extension sends `available: false` and shows no history entry
 
 #### Scenario: `.git` is a file

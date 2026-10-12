@@ -18,7 +18,11 @@ The preview extension runs in the App Sandbox. The extension receives the previe
 
 ### Repository detection
 
-The extension walks up from the file folder. The extension stops at the first folder that contains a `.git` directory. The extension calls `git -C <folder> rev-parse --show-toplevel` to confirm the root. The extension does not support a `.git` file.
+The extension asks Git for the repository root of the file folder:
+`git rev-parse --show-toplevel`.
+Git walks up the folder tree. The extension rejects a `.git` file, because the spec excludes a linked worktree and a submodule.
+This call uses the same 3-second timeout as every other Git call.
+The extension does not read the parent folders with Foundation, because that read can block.
 
 ### Git process
 

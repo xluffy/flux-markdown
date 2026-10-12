@@ -194,24 +194,27 @@ struct GitHistoryProvider {
     // MARK: - Repository
 
     func repositoryRoot() throws -> URL {
-        let fm = FileManager.default
-        var directory = fileURL.deletingLastPathComponent()
-
-        while true {
-            let gitDirectory = directory.appendingPathComponent(".git", isDirectory: true)
-            var isDirectory: ObjCBool = false
-            if fm.fileExists(atPath: gitDirectory.path, isDirectory: &isDirectory), isDirectory.boolValue {
-                let result = try runner.run(["rev-parse", "--show-toplevel"], in: directory)
-                guard result.status == 0 else { throw GitHistoryError.accessDenied }
-                let top = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !top.isEmpty else { throw GitHistoryError.accessDenied }
-                return URL(fileURLWithPath: top, isDirectory: true)
+        let start = fileURL.deletingLastPathComponent()
+        let result = try runner.run(["rev-parse", "--show-toplevel"], in: start)
+        guard result.status == 0 else {
+            let stderr = result.stderr.lowercased()
+            if stderr.contains("not a git repository") {
+                throw GitHistoryError.notARepository
             }
-            let parent = directory.deletingLastPathComponent()
-            if parent.path == directory.path { break }
-            directory = parent
+            throw GitHistoryError.accessDenied
         }
-        throw GitHistoryError.notARepository
+        let top = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !top.isEmpty else { throw GitHistoryError.notARepository }
+
+        let root = URL(fileURLWithPath: top, isDirectory: true)
+        // A linked worktree or a submodule uses a `.git` file. The spec excludes it.
+        var isDirectory: ObjCBool = false
+        let gitPath = root.appendingPathComponent(".git", isDirectory: true)
+        if FileManager.default.fileExists(atPath: gitPath.path, isDirectory: &isDirectory),
+           !isDirectory.boolValue {
+            throw GitHistoryError.notARepository
+        }
+        return root
     }
 
     private func relativePath(in root: URL) throws -> String {
