@@ -57,17 +57,14 @@
 /* ─── Blue marks a block-level change (large rewrite, not a word edit) ─── */
 :root {
   --review-mod-border: #0969da;
-  --review-mod-bg: rgba(9, 105, 218, 0.10);
 }
 
 [data-theme='dark'] {
   --review-mod-border: #4493f8;
-  --review-mod-bg: rgba(56, 139, 253, 0.16);
 }
 
 .review-item.review-modified {
   border-left-color: var(--review-mod-border, #0969da);
-  background: var(--review-mod-bg, rgba(9, 105, 218, 0.10));
 }
 
 .review-item.is-reviewed {
@@ -136,7 +133,6 @@
 }
 
 .review-item.review-modified .review-inline-before {
-  background: var(--review-mod-bg, rgba(9, 105, 218, 0.10));
   text-decoration-color: var(--review-mod-border, #0969da);
 }
 
