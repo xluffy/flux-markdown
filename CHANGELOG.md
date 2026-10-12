@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.34.530] - 2026-10-12
+
 ### Changed
 - **Git history icon**: Keep the Git branch icon on the Git history toggle.
 - **Removed block color**: Use a pale red background for the removed block in a diff.
