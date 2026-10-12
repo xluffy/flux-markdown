@@ -95,7 +95,7 @@ git tag -a "$TAG" -m "FluxMarkdown $TAG: unofficial personal maintenance fork"
 verify_origin
 # Atomic push rejects conflicts without updating either remote ref. Never force.
 git push --atomic origin "HEAD:refs/heads/$BRANCH" "refs/tags/$TAG:refs/tags/$TAG"
-echo "Pushed $TAG to xluffy-fork/flux-markdown."
+echo "Pushed $TAG to xluffy/flux-markdown."
 echo "The tag-triggered release.yml workflow builds and verifies the ad-hoc ARM64 DMG."
 echo "No local binaries were uploaded; no Developer ID signing or notarization is claimed."
-echo "Workflow: https://github.com/xluffy-fork/flux-markdown/actions/workflows/release.yml"
+echo "Workflow: https://github.com/xluffy/flux-markdown/actions/workflows/release.yml"
