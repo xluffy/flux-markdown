@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.34.515] - 2026-10-12
+
 ### Changed
 - **Review mode block mark**: Keep the original block background. Use only a blue left border and a blue strike-through for a block-level change.
 
