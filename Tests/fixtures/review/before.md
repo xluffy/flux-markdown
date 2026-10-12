@@ -2,7 +2,7 @@
 
 This document describes where the app stores cookies and sessions. The app keeps this data on the device.
 
-A second paragraph has a [documentation link](https://github.com/xluffy-fork/flux-markdown) and some **bold text**.
+A second paragraph has a [documentation link](https://github.com/xluffy/flux-markdown) and some **bold text**.
 
 - The first list item does not change.
 - The second list item changes a little.

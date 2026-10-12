@@ -10,19 +10,23 @@ BUMP_TYPE=${1:-patch}
 case "$BUMP_TYPE" in major|minor|patch) ;; *) fail "Use major, minor, or patch." ;; esac
 
 # Never publish to upstream, a sibling repository, or an extra push URL.
+# Accept the canonical fork name and its legacy xluffy-fork alias. The alias
+# redirects to the canonical repository, so both names identify the same fork.
+is_fork_url() {
+    case "$1" in
+        git@github.com:xluffy/flux-markdown.git|https://github.com/xluffy/flux-markdown.git|https://github.com/xluffy/flux-markdown|ssh://git@github.com/xluffy/flux-markdown.git|\
+        git@github.com:xluffy-fork/flux-markdown.git|https://github.com/xluffy-fork/flux-markdown.git|https://github.com/xluffy-fork/flux-markdown|ssh://git@github.com/xluffy-fork/flux-markdown.git) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 verify_origin() {
     local url
     while IFS= read -r url; do
-        case "$url" in
-            git@github.com:xluffy-fork/flux-markdown.git|https://github.com/xluffy-fork/flux-markdown.git|https://github.com/xluffy-fork/flux-markdown|ssh://git@github.com/xluffy-fork/flux-markdown.git) ;;
-            *) fail "Origin must be xluffy-fork/flux-markdown; found: $url" ;;
-        esac
+        is_fork_url "$url" || fail "Origin must be xluffy/flux-markdown; found: $url"
     done < <(git remote get-url --push --all origin)
     url=$(git remote get-url origin) || fail "Missing origin remote."
-    case "$url" in
-        git@github.com:xluffy-fork/flux-markdown.git|https://github.com/xluffy-fork/flux-markdown.git|https://github.com/xluffy-fork/flux-markdown|ssh://git@github.com/xluffy-fork/flux-markdown.git) ;;
-        *) fail "Origin fetch URL must identify xluffy-fork/flux-markdown." ;;
-    esac
+    is_fork_url "$url" || fail "Origin fetch URL must identify xluffy/flux-markdown."
 }
 verify_origin
 [ -z "$(git status --porcelain --untracked-files=all)" ] || fail "Release requires a clean working tree."

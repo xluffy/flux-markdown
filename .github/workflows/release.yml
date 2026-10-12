@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    if: github.repository == 'xluffy-fork/flux-markdown'
+    if: github.repository == 'xluffy/flux-markdown'
     runs-on: macos-15
     env:
       CI: true

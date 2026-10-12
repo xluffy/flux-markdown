@@ -14,7 +14,7 @@ Do not use upstream signing identities or imply endorsement.
 ## Preconditions
 
 - Read `docs/release/RELEASE_PROCESS.md`.
-- Confirm that `origin` identifies `xluffy-fork/flux-markdown`.
+- Confirm that `origin` identifies `xluffy/flux-markdown`.
 - Require a clean branch checkout with full Git history.
 - Verify feature behavior, renderer tests, native tests, and the actual application surface.
 - Record changes and contributor credit under `[Unreleased]` in `CHANGELOG.md`.

@@ -7,7 +7,7 @@ Do not publish fork changes to the upstream repository or its Homebrew tap.
 
 ## Develop a change
 
-1. Create a feature branch in `xluffy-fork/flux-markdown`.
+1. Create a feature branch in `xluffy/flux-markdown`.
 2. Implement the change and keep suitable regression coverage.
 3. Run renderer tests and native tests through CI.
 4. Exercise the actual application and Finder QuickLook.
@@ -27,7 +27,7 @@ Builds use this checkout's `build/DerivedData` directory.
 If full Xcode is unavailable, push the committed source to the fork and run:
 
 ```bash
-gh workflow run release.yml --repo xluffy-fork/flux-markdown --ref master
+gh workflow run release.yml --repo xluffy/flux-markdown --ref master
 ```
 
 The manual workflow builds, tests, and uploads artifacts without creating a release.
@@ -36,7 +36,7 @@ Download its artifacts with `gh run download` after the run succeeds.
 ## Publish a release
 
 Start from a clean branch checkout with full Git history.
-Verify that `origin` identifies `xluffy-fork/flux-markdown`.
+Verify that `origin` identifies `xluffy/flux-markdown`.
 Do not change `.version` manually.
 
 ```bash

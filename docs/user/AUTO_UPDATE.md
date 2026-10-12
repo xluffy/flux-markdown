@@ -6,7 +6,7 @@ Original copyright, license documents, and contributor attribution remain intact
 
 ## Update the application
 
-1. Select a verified release from [the fork](https://github.com/xluffy-fork/flux-markdown/releases).
+1. Select a verified release from [the fork](https://github.com/xluffy/flux-markdown/releases).
 2. Update the release version and DMG hash in `nix-config/pkgs/flux-markdown.nix`.
 3. Run `just check` and build `.#flux-markdown` from `nix-config`.
 4. Run `just switch` after all checks pass.
