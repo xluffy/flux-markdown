@@ -148,6 +148,10 @@ public class PreviewViewController: NSViewController, QLPreviewingController, WK
     
     private let renderVersion = RenderVersionCounter()
 
+    // MARK: - Git History
+    private var gitHistoryEntriesByID: [String: [String: Any]] = [:]
+    private var gitHistoryGeneration = 0
+
     // MARK: - File Monitoring
     private var fileMonitor: DispatchSourceFileSystemObject?
     private var monitoredFileDescriptor: Int32 = -1
@@ -332,6 +336,7 @@ public class PreviewViewController: NSViewController, QLPreviewingController, WK
         let userContentController = WKUserContentController()
         userContentController.add(self, name: "logger")
         userContentController.add(self, name: "linkClicked")
+        userContentController.add(self, name: "gitHistory")
         webConfiguration.userContentController = userContentController
         
         let schemeHandler = LocalSchemeHandler()
@@ -568,6 +573,7 @@ public class PreviewViewController: NSViewController, QLPreviewingController, WK
         webView.navigationDelegate = nil
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "logger")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "linkClicked")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "gitHistory")
         
         for recognizer in webView.gestureRecognizers where recognizer is NSClickGestureRecognizer {
             webView.removeGestureRecognizer(recognizer)
@@ -1200,8 +1206,24 @@ public class PreviewViewController: NSViewController, QLPreviewingController, WK
             return
         }
 
+        let previous = self.prevMarkdown
+        self.prevMarkdown = nil
+        renderMarkdownContent(content, baseline: nil, gitDiff: false, prevContent: previous)
+    }
+
+    /// Render `current` with an inline diff against `baseline`. This path does not
+    /// show the review toolbar and the reviewed store.
+    private func renderGitDiff(current: String, baseline: String) {
+        guard isWebViewLoaded else {
+            os_log("🟡 renderGitDiff called but WebView not ready", log: logger, type: .debug)
+            return
+        }
+        renderMarkdownContent(current, baseline: baseline, gitDiff: true, prevContent: nil)
+    }
+
+    private func renderMarkdownContent(_ content: String, baseline: String?, gitDiff: Bool, prevContent: String?) {
         webView.evaluateJavaScript("window.clearDiffMarks && window.clearDiffMarks();", completionHandler: nil)
-        os_log("🔵 renderPendingMarkdown called with content length: %d", log: logger, type: .debug, content.count)
+        os_log("🔵 renderMarkdownContent called with content length: %d, gitDiff: %{public}@", log: logger, type: .debug, content.count, gitDiff ? "YES" : "NO")
         
         guard let contentData = try? JSONSerialization.data(withJSONObject: [content], options: []),
               let contentJsonArray = String(data: contentData, encoding: .utf8) else {
@@ -1228,12 +1250,13 @@ public class PreviewViewController: NSViewController, QLPreviewingController, WK
         let capturedUILanguage = AppearancePreference.shared.uiLanguage
         let capturedCollapseBlockquotes = AppearancePreference.shared.collapseBlockquotesByDefault
         let capturedShowLineNumbers = AppearancePreference.shared.showLineNumbers
-        let capturedPrevMarkdown = self.prevMarkdown
+        let capturedPrevMarkdown = prevContent
+        let capturedBaseline = baseline
+        let capturedGitDiff = gitDiff
         let capturedPreviewMode = self.currentPreviewMode
         let capturedFontSize: Double = (capturedPreviewMode == .compact)
             ? AppearancePreference.shared.finderPaneFontSize
             : AppearancePreference.shared.baseFontSize
-        self.prevMarkdown = nil
         let capturedRenderVersion = renderVersion.next()
 
         Task.detached(priority: .userInitiated) { [weak self] in
@@ -1248,7 +1271,12 @@ public class PreviewViewController: NSViewController, QLPreviewingController, WK
                     options["imageData"] = imageData
                 }
             }
-            if let prev = capturedPrevMarkdown, !prev.isEmpty {
+            if capturedGitDiff {
+                options["gitDiffMode"] = true
+                if let capturedBaseline = capturedBaseline {
+                    options["baselineContent"] = capturedBaseline
+                }
+            } else if let prev = capturedPrevMarkdown, !prev.isEmpty {
                 options["prevContent"] = prev
             }
             
@@ -1275,6 +1303,8 @@ public class PreviewViewController: NSViewController, QLPreviewingController, WK
                     case .success(let value):
                         os_log("🔵 renderMarkdown completed successfully, result: %{public}@", log: self.logger, type: .debug, String(describing: value))
                     }
+                    
+                    self.loadGitHistory()
                     
                     if let url = self.currentURL,
                        let savedScrollY = AppearancePreference.shared.getScrollPosition(for: url.path),
@@ -1394,9 +1424,101 @@ public class PreviewViewController: NSViewController, QLPreviewingController, WK
         } else if message.name == "linkClicked", let href = message.body as? String {
             os_log("🔵 Link clicked from JS: %{public}@", log: logger, type: .default, href)
             handleLinkClick(href: href)
+        } else if message.name == "gitHistory", let body = message.body as? [String: Any] {
+            handleGitHistoryMessage(body)
         }
     }
     
+    // MARK: - Git History
+
+    /// Read the repository history on a background queue and send it to the panel.
+    private func loadGitHistory() {
+        guard let url = currentURL else { return }
+        gitHistoryGeneration += 1
+        let generation = gitHistoryGeneration
+        os_log("🔵 [git] loading history for: %{public}@", log: logger, type: .debug, url.path)
+
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let payload = GitHistoryProvider(fileURL: url).payload()
+            let entries = payload["entries"] as? [[String: Any]] ?? []
+            var byID: [String: [String: Any]] = [:]
+            for entry in entries {
+                if let id = entry["id"] as? String { byID[id] = entry }
+            }
+            DispatchQueue.main.async {
+                guard let self = self, self.gitHistoryGeneration == generation else { return }
+                self.gitHistoryEntriesByID = byID
+                self.sendGitHistory(payload)
+            }
+        }
+    }
+
+    private func sendGitHistory(_ payload: [String: Any]) {
+        guard let data = try? JSONSerialization.data(withJSONObject: payload, options: []),
+              let json = String(data: data, encoding: .utf8) else {
+            os_log("🔴 [git] failed to encode payload", log: logger, type: .error)
+            return
+        }
+        let js = "window.setGitHistory && window.setGitHistory(\(json));"
+        webView?.evaluateJavaScript(js) { [weak self] _, error in
+            guard let self = self, let error = error else { return }
+            os_log("🔴 [git] setGitHistory failed: %{public}@", log: self.logger, type: .error, error.localizedDescription)
+        }
+    }
+
+    private func handleGitHistoryMessage(_ body: [String: Any]) {
+        guard let action = body["action"] as? String else { return }
+        if action == "current" {
+            os_log("🔵 [git] show current file", log: logger, type: .debug)
+            renderPendingMarkdown()
+            return
+        }
+        guard action == "select", let id = body["id"] as? String else { return }
+        os_log("🔵 [git] entry selected: %{public}@", log: logger, type: .debug, id)
+
+        if id == "working" {
+            showWorkingTreeDiff()
+            return
+        }
+        guard let entry = gitHistoryEntriesByID[id],
+              let hash = entry["id"] as? String,
+              let path = entry["path"] as? String else { return }
+        showCommitDiff(hash: hash, path: path, entryID: id)
+    }
+
+    private func showWorkingTreeDiff() {
+        guard let url = currentURL else { return }
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let provider = GitHistoryProvider(fileURL: url)
+            let current = (try? provider.currentContent()) ?? ""
+            let baseline = (try? provider.headContent()) ?? ""
+            DispatchQueue.main.async {
+                self?.renderGitDiff(current: current, baseline: baseline)
+            }
+        }
+    }
+
+    private func showCommitDiff(hash: String, path: String, entryID: String) {
+        guard let url = currentURL else { return }
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let provider = GitHistoryProvider(fileURL: url)
+            let current = (try? provider.content(hash: hash, path: path)) ?? ""
+            let baseline = (try? provider.parentContent(hash: hash, path: path)) ?? ""
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.renderGitDiff(current: current, baseline: baseline)
+                self.selectGitHistoryEntry(entryID)
+            }
+        }
+    }
+
+    private func selectGitHistoryEntry(_ id: String) {
+        guard let data = try? JSONSerialization.data(withJSONObject: [id], options: []),
+              let array = String(data: data, encoding: .utf8) else { return }
+        let safeId = String(array.dropFirst().dropLast())
+        webView?.evaluateJavaScript("window.selectGitHistoryEntry && window.selectGitHistoryEntry(\(safeId));", completionHandler: nil)
+    }
+
     private func handleLinkClick(href: String) {
         if href.starts(with: "http://") || href.starts(with: "https://") {
             if let url = URL(string: href) {

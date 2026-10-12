@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Added
+- **Git history panel**: Show the recent commits of the open file in a right-side panel. The panel shows the short hash, the author, the relative date, and the subject. Select an entry to show the file content with an inline diff against the parent revision. The panel also shows one uncommitted-change entry and follows file renames.
+
 ## [1.34.515] - 2026-10-12
 
 ### Changed

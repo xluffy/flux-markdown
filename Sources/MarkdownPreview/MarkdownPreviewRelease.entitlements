@@ -15,8 +15,11 @@
     <true/>
 
     <!-- Read main-app preferences without embedding a build-machine absolute home path. -->
+    <!-- The `/` entry grants read-only access to repositories under the home folder,
+         so the Git history panel can read `.git`. See docs: add-git-history-panel. -->
     <key>com.apple.security.temporary-exception.files.home-relative-path.read-only</key>
     <array>
+        <string>/</string>
         <string>/Library/Application Support/FluxMarkdown/</string>
     </array>
 

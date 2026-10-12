@@ -134,6 +134,7 @@ import './styles/help-overlay.css';
 import './styles/blockquote-collapse.css';
 import './styles/diff-animations.css';
 import './styles/review-mode.css';
+import './styles/git-history-panel.css';
 import './styles/line-numbers.css';
 import './styles/finder-pane.css';
 import './styles/typst.css';
@@ -279,6 +280,8 @@ import { detectRtlContent } from './rtl';
 import { DiffAnimator } from './diff-animator';
 import { computeLineDiff } from './diff-engine';
 import { ReviewController, clearReviewDom, stripReviewHtml } from './review-mode';
+import { GitHistoryPanel, applyGitDiff } from './git-history-panel';
+import type { GitHistoryPayload } from './git-history-panel';
 
 function extractFrontMatter(text: string): { yaml: string | null; body: string } {
     if (!text.startsWith('---')) {
@@ -402,6 +405,7 @@ function buildMd(): MarkdownIt {
 
 let md: MarkdownIt = buildMd();
 const diffAnimator = new DiffAnimator();
+const gitHistoryPanel = new GitHistoryPanel(logToSwift);
 
 interface ReviewContextCache {
     body: string;
@@ -449,6 +453,7 @@ interface RenderOptions {
     reviewMode?: boolean;
     baselineContent?: string;
     documentKey?: string;
+    gitDiffMode?: boolean;
 }
 
 function imageDataForSource(source: string, imageData?: Record<string, string>): string | undefined {
@@ -548,6 +553,8 @@ declare global {
         renderMarkdown: (text: string, options?: RenderOptions) => Promise<void>;
         renderSource: (text: string, theme: string, prevContent?: string) => void;
         clearDiffMarks: () => void;
+        setGitHistory: (payload: GitHistoryPayload) => void;
+        selectGitHistoryEntry: (id: string) => void;
         setReviewMode: (enabled: boolean) => void;
         exitReview: () => void;
         reviewSummary: () => { total: number; remaining: number };
@@ -896,13 +903,18 @@ window.renderMarkdown = async function (text: string, options: RenderOptions = {
 
         // Review mode and the transient diff animation are mutually exclusive.
         // Review mode shows persistent inline word marks; the animation is the fallback.
-        const reviewEnabled = options.reviewMode !== false;
+        const gitDiffEnabled = options.gitDiffMode === true;
+        const reviewEnabled = options.reviewMode !== false && !gitDiffEnabled;
         const baselineRaw = options.baselineContent ?? options.prevContent;
         const baselineBody = baselineRaw ? extractFrontMatter(baselineRaw).body : '';
         reviewController = null;
         lastReviewContext = null;
         let reviewActive = false;
-        if (reviewEnabled && baselineBody && baselineBody !== renderBody) {
+        if (gitDiffEnabled && baselineBody) {
+            const renderBaseline = (body: string) => md.render(body, { baseUrl: options.baseUrl, imageData: options.imageData, renderVersion: options.renderVersion });
+            applyGitDiff(outputDiv, { currentBody: renderBody, baselineBody, renderBaseline, log: logToSwift });
+            reviewActive = true;
+        } else if (reviewEnabled && baselineBody && baselineBody !== renderBody) {
             const documentKey = options.documentKey || options.baseUrl || 'default';
             const renderBaseline = (body: string) => md.render(body, { baseUrl: options.baseUrl, imageData: options.imageData, renderVersion: options.renderVersion });
             const controller = new ReviewController(outputDiv, documentKey, logToSwift);
@@ -1098,6 +1110,14 @@ window.setReviewMode = function(enabled: boolean) {
 window.exitReview = function() {
     reviewController?.clear();
     reviewController = null;
+};
+
+window.setGitHistory = function(payload: GitHistoryPayload) {
+    gitHistoryPanel.render(payload);
+};
+
+window.selectGitHistoryEntry = function(id: string) {
+    gitHistoryPanel.setSelected(id);
 };
 
 window.reviewSummary = function() {
