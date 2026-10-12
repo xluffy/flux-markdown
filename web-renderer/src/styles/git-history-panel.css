@@ -210,10 +210,18 @@
   }
 }
 
-/* ─── The panel is not useful in the small Finder pane ─── */
-[data-context='finder'] #git-history-panel,
+/* ─── Compact Finder pane: keep the toggle and overlay the panel ─── */
 [data-context='finder'] #git-history-toggle {
-  display: none !important;
+  top: 8px;
+  right: 8px;
+}
+
+[data-context='finder'] #git-history-panel {
+  width: min(300px, 90vw);
+}
+
+[data-context='finder'] body.git-history-open #markdown-preview {
+  padding-right: 0;
 }
 
 /* ─── Shift the document when the panel is open ─── */

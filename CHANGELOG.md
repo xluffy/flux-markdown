@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Fixed
+- **Git history in the compact pane**: Show the Git toggle in the Finder preview pane and in the small QuickLook window. The compact layout hid the toggle before.
+
 ## [1.34.522] - 2026-10-12
 
 ### Changed
