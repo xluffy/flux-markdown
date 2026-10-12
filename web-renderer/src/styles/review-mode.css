@@ -54,8 +54,20 @@
   border-left-color: var(--diff-add-border);
 }
 
+/* ─── Blue marks a block-level change (large rewrite, not a word edit) ─── */
+:root {
+  --review-mod-border: #0969da;
+  --review-mod-bg: rgba(9, 105, 218, 0.10);
+}
+
+[data-theme='dark'] {
+  --review-mod-border: #4493f8;
+  --review-mod-bg: rgba(56, 139, 253, 0.16);
+}
+
 .review-item.review-modified {
-  border-left-color: var(--diff-mod-border);
+  border-left-color: var(--review-mod-border, #0969da);
+  background: var(--review-mod-bg, rgba(9, 105, 218, 0.10));
 }
 
 .review-item.is-reviewed {
@@ -111,26 +123,9 @@
   background: var(--review-button-hover, rgba(128, 128, 128, 0.18));
 }
 
-/* ─── Before disclosure for removals and large rewrites ─── */
-.review-before {
-  position: relative;
-  margin: 8px 0;
-  padding: 4px 10px 4px 30px;
-  border-left: 3px solid var(--diff-del-border);
-  border-radius: 4px;
-  background: var(--diff-del-bg);
-  font-size: 13px;
-}
-
-.review-before > summary {
-  cursor: pointer;
-  color: var(--diff-del-border);
-  font-weight: 600;
-  user-select: none;
-}
-
-.review-before-body {
-  margin-top: 6px;
+/* ─── Inline before block: the old version stays in the flow ─── */
+.review-inline-before {
+  margin: 0 0 6px 0;
   padding: 6px 8px;
   border-radius: 4px;
   background: var(--review-before-body-bg, rgba(128, 128, 128, 0.10));
@@ -140,13 +135,9 @@
   opacity: 0.9;
 }
 
-.review-before.is-reviewed {
-  border-left-color: var(--review-reviewed-border, rgba(128, 128, 128, 0.35));
-  background: transparent;
-}
-
-.review-before.is-reviewed > summary {
-  color: var(--review-reviewed-border, rgba(128, 128, 128, 0.7));
+.review-item.review-modified .review-inline-before {
+  background: var(--review-mod-bg, rgba(9, 105, 218, 0.10));
+  text-decoration-color: var(--review-mod-border, #0969da);
 }
 
 /* ─── Inline word marks: clear red and green backgrounds ─── */
@@ -175,7 +166,7 @@
 /* ─── Print: hide all review annotations ─── */
 @media print {
   .review-toolbar,
-  .review-before,
+  .review-inline-before,
   .review-footer,
   .review-word-removed {
     display: none !important;

@@ -190,7 +190,7 @@ describe('ReviewController', () => {
     expect(controller.getSummary().remaining).toBe(0);
   });
 
-  test('shows a before disclosure for a removed block', () => {
+  test('shows the removed block inline, without a disclosure', () => {
     const container = makeContainer('');
     container.innerHTML = block('p', 'kept', 1, 1);
     const controller = new ReviewController(container, 'doc-key');
@@ -201,11 +201,12 @@ describe('ReviewController', () => {
       renderBaseline: () => block('p', 'kept', 1, 1) + block('p', 'gone', 3, 3),
     });
     expect(controller.getSummary().total).toBe(1);
-    expect(container.querySelector('.review-before')).toBeTruthy();
-    expect(container.querySelector('.review-before')?.textContent).toContain('gone');
+    expect(container.querySelector('.review-before')).toBeNull();
+    expect(container.querySelector('.review-inline-before')).toBeTruthy();
+    expect(container.querySelector('.review-inline-before')?.textContent).toContain('gone');
   });
 
-  test('shows a before disclosure for a large rewrite', () => {
+  test('shows a large rewrite inline with a blue block mark', () => {
     const container = makeContainer('');
     container.innerHTML = block('p', 'one two three four', 1, 1);
     const controller = new ReviewController(container, 'doc-key');
@@ -215,7 +216,10 @@ describe('ReviewController', () => {
       documentKey: 'doc-key',
       renderBaseline: () => block('p', 'alpha beta gamma delta', 1, 1),
     });
-    expect(container.querySelector('.review-before')).toBeTruthy();
+    expect(container.querySelector('.review-before')).toBeNull();
+    expect(container.querySelector('.review-inline-before')).toBeTruthy();
+    expect(container.querySelector('.review-inline-before')?.textContent).toContain('alpha beta gamma delta');
+    expect(container.querySelector('.review-item.review-modified')).toBeTruthy();
     expect(container.querySelector('.review-word-added')).toBeNull();
   });
 

@@ -602,18 +602,20 @@ export class ReviewController {
     const blockEl = change.el;
     if (!blockEl) return;
 
+    const item = document.createElement('div');
+    item.className = `review-item review-${change.type}`;
+    item.setAttribute('data-review-id', change.id);
+
     if (change.type === 'modified' && change.baselineEl) {
       const annotated = inlineDiff(change.baselineEl.innerHTML, blockEl.innerHTML);
       if (annotated === null) {
-        this.insertBeforeDisclosure(change, blockEl, change.baselineEl);
+        // Large rewrite: show the old block inline, above the new block.
+        item.appendChild(this.buildInlineBefore(change.baselineEl));
       } else {
         blockEl.innerHTML = annotated;
       }
     }
 
-    const item = document.createElement('div');
-    item.className = `review-item review-${change.type}`;
-    item.setAttribute('data-review-id', change.id);
     blockEl.parentNode?.insertBefore(item, blockEl);
     item.appendChild(blockEl);
     item.appendChild(this.makeFooter(change));
@@ -622,37 +624,30 @@ export class ReviewController {
 
   private renderRemoved(change: ReviewChange): void {
     if (!change.baselineEl) return;
-    const details = this.buildBeforeDetails(change.baselineEl, change.id);
+    const item = document.createElement('div');
+    item.className = 'review-item review-removed';
+    item.setAttribute('data-review-id', change.id);
+    item.appendChild(this.buildInlineBefore(change.baselineEl));
+    item.appendChild(this.makeFooterById(change.id));
+
     const anchor = change.insertBefore;
     if (anchor && anchor.parentNode) {
-      anchor.parentNode.insertBefore(details, anchor);
+      anchor.parentNode.insertBefore(item, anchor);
     } else {
-      this.container.appendChild(details);
+      this.container.appendChild(item);
     }
     this.applyReviewedClass(change, this.isReviewed(change.id));
   }
 
-  private insertBeforeDisclosure(change: ReviewChange, blockEl: HTMLElement, baselineEl: HTMLElement): void {
-    const details = this.buildBeforeDetails(baselineEl, change.id);
-    blockEl.parentNode?.insertBefore(details, blockEl);
-  }
-
-  private buildBeforeDetails(baselineEl: HTMLElement, changeId: string): HTMLElement {
-    const details = document.createElement('details');
-    details.className = 'review-before';
-    details.setAttribute('data-review-id', changeId);
-
-    const summary = document.createElement('summary');
-    summary.textContent = 'Before';
-
-    const body = document.createElement('div');
-    body.className = 'review-before-body';
-    body.appendChild(baselineEl.cloneNode(true));
-
-    details.appendChild(summary);
-    details.appendChild(body);
-    details.appendChild(this.makeFooterById(changeId));
-    return details;
+  /**
+   * The old version of a change stays inline in the document flow. No
+   * disclosure hides it.
+   */
+  private buildInlineBefore(baselineEl: HTMLElement): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = 'review-inline-before';
+    wrap.appendChild(baselineEl.cloneNode(true));
+    return wrap;
   }
 
   private makeFooter(change: ReviewChange): HTMLElement {
@@ -700,7 +695,7 @@ export class ReviewController {
 /** Remove all review annotations from the container. */
 export function clearReviewDom(container: HTMLElement): void {
   container.querySelectorAll('.review-toolbar').forEach((el) => el.remove());
-  container.querySelectorAll('.review-before').forEach((el) => el.remove());
+  container.querySelectorAll('.review-inline-before').forEach((el) => el.remove());
 
   container.querySelectorAll<HTMLElement>('.review-item').forEach((item) => {
     const children = Array.from(item.childNodes);

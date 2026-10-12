@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- **Review mode inline diff**: Show large block changes inline. The old version stays in the document flow, so no "Before" fold hides it. Block-level changes use a blue mark (by [@xluffy](https://github.com/xluffy)).
+
 ## [1.34.507] - 2026-10-09
 
 ## [1.34.505] - 2026-10-09

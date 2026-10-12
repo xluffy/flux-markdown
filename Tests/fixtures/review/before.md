@@ -7,7 +7,7 @@ A second paragraph has a [documentation link](https://github.com/xluffy-fork/flu
 - The first list item does not change.
 - The second list item changes a little.
 
-This whole paragraph will be removed in the new version. It should appear in a before disclosure.
+This whole paragraph will be removed in the new version. It shows inline with a red strike-through.
 
 > A quote that will be rewritten with completely different words and a different idea.
 
