@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- **Git history toggle**: Use a toolbar button in the style of the table-of-contents button to show and hide the Git history panel.
+
 ## [1.34.519] - 2026-10-12
 
 ### Added
