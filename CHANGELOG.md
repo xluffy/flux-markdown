@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- **Toolbar icons**: Remove the blockquote collapse button (the fold icon). Use the fold icon for the Git history toggle.
+
 ## [1.34.526] - 2026-10-12
 
 ### Changed
